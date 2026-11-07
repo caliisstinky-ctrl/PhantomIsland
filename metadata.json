@@ -1,0 +1,6 @@
+{
+  "name": "Dynamic Notch Studio",
+  "description": "Sleek dark monochrome Dynamic Island and camera cutout notification hub inspired by Dynamic Notch v6.6 with fluid morphing animations, live activities, and hardware calibration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
