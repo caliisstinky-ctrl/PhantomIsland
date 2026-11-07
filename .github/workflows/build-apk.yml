@@ -3,17 +3,17 @@ name: Android APK Build
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - 'android/**'
-      - '.github/workflows/android-apk.yml'
+      - '.github/workflows/build-apk.yml'
 
 jobs:
   build-debug-apk:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Set up Java 17
@@ -23,12 +23,12 @@ jobs:
           java-version: '17'
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android SDK packages
-        run: |
-          yes | sdkmanager --licenses
-          sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+        uses: android-actions/setup-android@v4
+        with:
+          packages: |
+            platform-tools
+            platforms;android-34
+            build-tools;34.0.0
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -36,7 +36,7 @@ jobs:
           gradle-version: '8.4'
 
       - name: Build debug APK
-        run: gradle -p android :app:assembleDebug
+        run: gradle --no-daemon -p android :app:assembleDebug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
