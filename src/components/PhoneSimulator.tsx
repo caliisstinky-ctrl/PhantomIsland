@@ -145,7 +145,7 @@ export const PhoneSimulator: React.FC<PhoneSimulatorProps> = ({
               {/* Daily Habit / Standby Widget with Island On/Off status */}
               <div className="p-3.5 rounded-2xl bg-black/60 backdrop-blur-md border border-zinc-800/80 text-zinc-200">
                 <div className="flex items-center justify-between text-xs font-mono uppercase text-zinc-400 pb-2 border-b border-zinc-800/60">
-                  <span>Dynamic Notch v6.6</span>
+                  <span>PhantomIsland v6.6</span>
                   <button 
                     onClick={onTogglePower}
                     className="flex items-center gap-1.5 text-[11px] font-semibold transition-colors pointer-events-auto hover:text-white"

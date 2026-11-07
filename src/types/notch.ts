@@ -120,6 +120,30 @@ export interface NotchConfig {
   showMiniWaveform: boolean;
   showMiniTimer: boolean;
   showMiniBattery: boolean;
+
+  // Real System & OS Overlay Settings (Non-Root Keep-Alive, Root, Display Over Apps, Landscape)
+  systemOverlay: SystemOverlayConfig;
+}
+
+export interface SystemOverlayConfig {
+  // Display Over Other Apps & Orientation
+  displayOverApps: boolean;
+  showInFullScreenGames: boolean;
+  hideOnLockScreen: boolean;
+  landscapeBehavior: 'stay-over-camera' | 'rotate-to-top' | 'hide-in-landscape';
+  autoHideSeconds: number;       // 0 for never, or 3, 5, 8, 15
+
+  // Non-Root Keep-Alive
+  ignoreBatteryOptimization: boolean;
+  unrestrictedData: boolean;
+  foregroundService: boolean;
+  accessibilityService: boolean;
+
+  // Root & Power User Options
+  rootModeEnabled: boolean;
+  systemPrivApp: boolean;
+  magiskModuleSupport: boolean;
+  restartOnOOMKill: boolean;
 }
 
 export interface CustomNotification {

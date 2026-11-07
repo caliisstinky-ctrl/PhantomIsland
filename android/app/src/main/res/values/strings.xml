@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">Dynamic Notch</string>
+    <string name="accessibility_service_description">Dynamic Notch system service keeps the camera cutout overlay running on top of all applications, manages immersive landscape adaptation, and ensures zero interruption from background task killers.</string>
+    <string name="overlay_notification_title">Dynamic Notch Active</string>
+    <string name="overlay_notification_text">Floating camera cutout overlay is running</string>
+</resources>

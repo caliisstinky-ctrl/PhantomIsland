@@ -128,7 +128,8 @@ dependencies {
       srcMain.file(
         'AndroidManifest.xml',
         `<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.dynamicnotch.app">
 
     <!-- Essential Android Permissions for Dynamic Notch & Floating Overlay -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -137,19 +138,24 @@ dependencies {
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="Dynamic Notch"
+        android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.DynamicNotch"
-        android:hardwareAccelerated="true">
+        android:hardwareAccelerated="true"
+        android:usesCleartextTraffic="true">
         
+        <!-- Main Activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -167,6 +173,38 @@ dependencies {
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- WindowManager Floating Island Overlay Service -->
+        <service
+            android:name=".IslandOverlayService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse" />
+
+        <!-- Accessibility Service for High OS Priority (oom_score_adj <= 0) -->
+        <service
+            android:name=".IslandAccessibilityService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <!-- Boot Receiver for Auto-Start on Reboot -->
+        <receiver
+            android:name=".BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>
@@ -302,20 +340,268 @@ public class MainActivity extends AppCompatActivity {
 }
 `
         );
+        kotlinFolder.file(
+          'IslandOverlayService.kt',
+          `package com.dynamicnotch.app
+
+import android.annotation.SuppressLint
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.content.res.Configuration
+import android.graphics.Color
+import android.graphics.PixelFormat
+import android.os.Build
+import android.os.IBinder
+import android.view.Gravity
+import android.view.View
+import android.view.WindowManager
+import android.webkit.WebChromeClient
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.core.app.NotificationCompat
+
+class IslandOverlayService : Service() {
+    private var windowManager: WindowManager? = null
+    private var overlayView: View? = null
+    private var webView: WebView? = null
+    private var layoutParams: WindowManager.LayoutParams? = null
+
+    companion object {
+        const val CHANNEL_ID = "dynamic_notch_overlay_channel"
+        const val NOTIFICATION_ID = 6601
+        const val ACTION_START = "ACTION_START_OVERLAY"
+        const val ACTION_STOP = "ACTION_STOP_OVERLAY"
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        createNotificationChannel()
+        startForeground(NOTIFICATION_ID, buildForegroundNotification())
+        initOverlay()
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_STOP) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        if (overlayView == null) {
+            initOverlay()
+        }
+        return START_STICKY
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun initOverlay() {
+        if (overlayView != null) return
+
+        windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+
+        val overlayType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        } else {
+            @Suppress("DEPRECATION")
+            WindowManager.LayoutParams.TYPE_PHONE
+        }
+
+        val flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
+
+        layoutParams = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            (160 * resources.displayMetrics.density).toInt(),
+            overlayType,
+            flags,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            x = 0
+            y = 0
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+        }
+
+        webView = WebView(this).apply {
+            setBackgroundColor(Color.TRANSPARENT)
+            setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            settings.apply {
+                javaScriptEnabled = true
+                domStorageEnabled = true
+                databaseEnabled = true
+                mediaPlaybackRequiresUserGesture = false
+                cacheMode = WebSettings.LOAD_DEFAULT
+                allowFileAccess = true
+                allowContentAccess = true
+            }
+            webViewClient = WebViewClient()
+            webChromeClient = WebChromeClient()
+            loadUrl("${appUrl}")
+        }
+
+        overlayView = webView
+        try {
+            windowManager?.addView(overlayView, layoutParams)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "PhantomIsland Overlay Service",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Floating PhantomIsland overlay"
+                setShowBadge(false)
+            }
+            getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
+        }
+    }
+
+    private fun buildForegroundNotification(): Notification {
+        val launchIntent = Intent(this, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            launchIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("PhantomIsland Active")
+            .setContentText("Camera cutout floating island is running")
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentIntent(pendingIntent)
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (overlayView != null && windowManager != null) {
+            try {
+                windowManager?.removeView(overlayView)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        webView?.destroy()
+    }
+}
+`
+        );
+
+        kotlinFolder.file(
+          'IslandAccessibilityService.kt',
+          `package com.dynamicnotch.app
+
+import android.accessibilityservice.AccessibilityService
+import android.content.Intent
+import android.os.Build
+import android.view.accessibility.AccessibilityEvent
+
+class IslandAccessibilityService : AccessibilityService() {
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        val overlayIntent = Intent(this, IslandOverlayService::class.java).apply {
+            action = IslandOverlayService.ACTION_START
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(overlayIntent)
+        } else {
+            startService(overlayIntent)
+        }
+    }
+
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
+
+    override fun onInterrupt() {}
+}
+`
+        );
+
+        kotlinFolder.file(
+          'BootReceiver.kt',
+          `package com.dynamicnotch.app
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+
+class BootReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context?, intent: Intent?) {
+        if (context == null || intent == null) return
+        val serviceIntent = Intent(context, IslandOverlayService::class.java).apply {
+            action = IslandOverlayService.ACTION_START
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+}
+`
+        );
       }
 
-      // Styles
+      // XML resources
+      const resXml = srcMain.folder('res/xml');
+      if (resXml) {
+        resXml.file(
+          'accessibility_service_config.xml',
+          `<?xml version="1.0" encoding="utf-8"?>
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/accessibility_service_description"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeNotificationStateChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:notificationTimeout="50"
+    android:accessibilityFlags="flagDefault|flagIncludeNotImportantViews|flagRetrieveInteractiveWindows"
+    android:canRetrieveWindowContent="true" />
+`
+        );
+      }
+
+      // Styles & Strings
       const resValues = srcMain.folder('res/values');
       if (resValues) {
+        resValues.file(
+          'strings.xml',
+          `<resources>
+    <string name="app_name">PhantomIsland</string>
+    <string name="accessibility_service_description">PhantomIsland system service keeps the camera cutout overlay running on top of all applications with zero-kill immunity.</string>
+</resources>
+`
+        );
         resValues.file(
           'styles.xml',
           `<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.DynamicNotch" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.PhantomIsland" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="android:statusBarColor">#09090B</item>
         <item name="android:navigationBarColor">#070708</item>
     </style>
-    <style name="Theme.DynamicNotch.Fullscreen" parent="Theme.DynamicNotch">
+    <style name="Theme.PhantomIsland.Fullscreen" parent="Theme.PhantomIsland">
         <item name="android:windowFullscreen">false</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
     </style>

@@ -60,7 +60,7 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
               <p className="mt-2 text-xs text-zinc-300 leading-relaxed">
                 1. Tap the <strong>Share</strong> button in Safari's bottom toolbar.<br />
                 2. Scroll down and tap <strong>Add to Home Screen</strong>.<br />
-                3. The Dynamic Notch app will install as a standalone mobile application.
+                3. The PhantomIsland app will install as a standalone mobile application.
               </p>
               <button
                 onClick={() => setShowIOSGuide(false)}

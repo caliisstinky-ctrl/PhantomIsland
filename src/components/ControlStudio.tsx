@@ -33,7 +33,14 @@ import {
   Plus,
   Trash2,
   PlayCircle,
-  BatteryCharging
+  BatteryCharging,
+  Shield,
+  ShieldCheck,
+  Terminal,
+  Cpu,
+  Copy,
+  ExternalLink,
+  Save
 } from 'lucide-react';
 import { 
   NotchConfig, 
@@ -48,7 +55,8 @@ import {
   EdgeLightingTrigger,
   IslandBorderPattern,
   CameraBatteryRingConfig,
-  BatteryChargingAnimation
+  BatteryChargingAnimation,
+  SystemOverlayConfig
 } from '../types/notch';
 import { soundFx } from '../utils/audio';
 import { requestSystemNotification, readRealClipboard, triggerHaptic, getRealDeviceBattery, RealBatteryState } from '../utils/system';
@@ -61,8 +69,8 @@ interface ControlStudioProps {
   onTriggerNotification: (notif: CustomNotification) => void;
   selectedTab: string;
   onSelectTab: (tab: string) => void;
-  displayMode: 'phone' | 'dock' | 'laptop';
-  onDisplayModeChange: (mode: 'phone' | 'dock' | 'laptop') => void;
+  displayMode: 'phone' | 'dock' | 'real-overlay';
+  onDisplayModeChange: (mode: 'phone' | 'dock' | 'real-overlay') => void;
 }
 
 export const ControlStudio: React.FC<ControlStudioProps> = ({
@@ -82,6 +90,31 @@ export const ControlStudio: React.FC<ControlStudioProps> = ({
   const [sendRealOSNotif, setSendRealOSNotif] = useState<boolean>(true);
   const [simulatedCharging, setSimulatedCharging] = useState<boolean>(false);
   const [testBatteryLevel, setTestBatteryLevel] = useState<number>(84);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<'island' | 'lighting'>(() => {
+    return (selectedTab === 'edge-lighting' || selectedTab === 'island-border') ? 'lighting' : 'island';
+  });
+  const [hasSavedPreset, setHasSavedPreset] = useState<boolean>(false);
+
+  const handleSaveConfig = () => {
+    try {
+      localStorage.setItem('phantomisland_saved_config', JSON.stringify(config));
+      setHasSavedPreset(true);
+      soundFx.playChime(config.soundEnabled);
+      if (config.hapticsEnabled) triggerHaptic(30);
+      setTimeout(() => setHasSavedPreset(false), 2500);
+    } catch {
+      // ignore
+    }
+  };
+
+  const copyToClipboard = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2500);
+    soundFx.playTap(config.soundEnabled);
+    if (config.hapticsEnabled) triggerHaptic(15);
+  };
 
   const update = (partial: Partial<NotchConfig>) => {
     onUpdateConfig({ ...config, ...partial });
@@ -91,6 +124,15 @@ export const ControlStudio: React.FC<ControlStudioProps> = ({
     update({
       batteryRing: {
         ...config.batteryRing,
+        ...partial,
+      },
+    });
+  };
+
+  const updateSystemOverlay = (partial: Partial<SystemOverlayConfig>) => {
+    update({
+      systemOverlay: {
+        ...config.systemOverlay,
         ...partial,
       },
     });
@@ -165,135 +207,213 @@ export const ControlStudio: React.FC<ControlStudioProps> = ({
   return (
     <div className="w-full bg-[#0d0d0f] border border-zinc-800 rounded-3xl p-5 sm:p-7 shadow-2xl flex flex-col justify-between">
       <div>
-        {/* Navigation Tabs (Top of Studio) */}
-        <div className="flex items-center justify-between pb-4 border-b border-zinc-800/80 mb-6 gap-2 overflow-x-auto">
-          <div className="flex items-center gap-1.5 p-1 bg-zinc-950 rounded-xl border border-zinc-800 overflow-x-auto">
-            <button
-              onClick={() => onSelectTab('calibration')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap ${
-                selectedTab === 'calibration'
-                  ? 'bg-zinc-800 text-white shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <Move className="w-3.5 h-3.5" />
-              <span>Position & Size</span>
-            </button>
+        {/* Category Controls, Master Power & Save Button Bar */}
+        <div className="flex flex-wrap items-center justify-between pb-4 border-b border-zinc-800/80 mb-4 gap-3">
+          {/* Master PhantomIsland Power Switch */}
+          <button
+            onClick={() => {
+              soundFx.playTap(config.soundEnabled);
+              if (config.hapticsEnabled) triggerHaptic(25);
+              update({ isEnabled: !config.isEnabled });
+            }}
+            className={`px-3.5 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-2 shadow-sm ${
+              config.isEnabled 
+                ? 'bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800' 
+                : 'bg-red-950/40 border-red-800/80 text-red-300'
+            }`}
+            title="Turn PhantomIsland On or Off"
+          >
+            <Power className={`w-3.5 h-3.5 ${config.isEnabled ? 'text-emerald-400' : 'text-red-400'}`} />
+            <span>{config.isEnabled ? 'PhantomIsland ON' : 'PhantomIsland OFF'}</span>
+          </button>
 
-            <button
-              onClick={() => onSelectTab('expansion')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap ${
-                selectedTab === 'expansion'
-                  ? 'bg-zinc-800 text-white shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <Workflow className="w-3.5 h-3.5" />
-              <span>Expansion & Motion</span>
-            </button>
-
-            <button
-              onClick={() => onSelectTab('battery-ring')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap ${
-                selectedTab === 'battery-ring'
-                  ? 'bg-zinc-800 text-white shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <BatteryCharging className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Battery Ring</span>
-            </button>
-
-            <button
-              onClick={() => onSelectTab('edge-lighting')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap ${
-                selectedTab === 'edge-lighting'
-                  ? 'bg-zinc-800 text-white shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <Sun className="w-3.5 h-3.5" />
-              <span>Edge Lighting</span>
-            </button>
-
-            <button
-              onClick={() => onSelectTab('island-border')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap ${
-                selectedTab === 'island-border'
-                  ? 'bg-zinc-800 text-white shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <CircleDot className="w-3.5 h-3.5" />
-              <span>Island Border</span>
-            </button>
-
-            <button
-              onClick={() => onSelectTab('triggers')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap ${
-                selectedTab === 'triggers'
-                  ? 'bg-zinc-800 text-white shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <Zap className="w-3.5 h-3.5" />
-              <span>Trigger Lab</span>
-            </button>
-
-            <button
-              onClick={() => onSelectTab('aesthetics')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap ${
-                selectedTab === 'aesthetics'
-                  ? 'bg-zinc-800 text-white shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              <Palette className="w-3.5 h-3.5" />
-              <span>Aesthetics</span>
-            </button>
-          </div>
-
-          {/* Master Island Power Switch & Viewport Switcher */}
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Master Island Power Switch */}
+          {/* 3 Action Buttons: [Phone: Island Options] [Rainbow Double-Lines: Edge Light/Border] [Save Option] */}
+          <div className="flex items-center gap-1.5 p-1 bg-zinc-950 rounded-xl border border-zinc-800 shrink-0">
+            {/* Button 1: Mobile Phone (PhantomIsland Options) */}
             <button
               onClick={() => {
                 soundFx.playTap(config.soundEnabled);
-                if (config.hapticsEnabled) triggerHaptic(25);
-                update({ isEnabled: !config.isEnabled });
+                setActiveCategory('island');
+                if (selectedTab === 'edge-lighting' || selectedTab === 'island-border') {
+                  onSelectTab('calibration');
+                }
               }}
-              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 ${
-                config.isEnabled 
-                  ? 'bg-zinc-900 border-zinc-700 text-white hover:bg-zinc-800' 
-                  : 'bg-red-950/40 border-red-800/80 text-red-300'
+              title="PhantomIsland Customization Options"
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                activeCategory === 'island' 
+                  ? 'bg-zinc-800 text-white shadow-sm ring-1 ring-zinc-700' 
+                  : 'text-zinc-400 hover:text-white'
               }`}
-              title="Turn Dynamic Island On or Off"
             >
-              <Power className={`w-3.5 h-3.5 ${config.isEnabled ? 'text-emerald-400' : 'text-red-400'}`} />
-              <span>{config.isEnabled ? 'Island ON' : 'Island OFF'}</span>
+              <Smartphone className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Island</span>
             </button>
 
-            <div className="flex items-center gap-1 p-1 bg-zinc-950 rounded-xl border border-zinc-800 shrink-0">
+            {/* Button 2: 2 Rainbow Lines (Edge Lighting & Border Options) */}
+            <button
+              onClick={() => {
+                soundFx.playTap(config.soundEnabled);
+                setActiveCategory('lighting');
+                if (selectedTab !== 'edge-lighting' && selectedTab !== 'island-border') {
+                  onSelectTab('edge-lighting');
+                }
+              }}
+              title="Edge Lighting & Island Border Options"
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                activeCategory === 'lighting' 
+                  ? 'bg-zinc-800 text-white shadow-sm ring-1 ring-zinc-700' 
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              {/* 2 Rainbow Neon Lines Graphic */}
+              <div className="flex items-center gap-0.5 h-3.5 w-3.5 justify-center">
+                <span className="w-1 h-3.5 rounded-full bg-gradient-to-b from-pink-500 via-amber-400 to-cyan-400 shadow-[0_0_6px_rgba(244,63,94,0.6)]" />
+                <span className="w-1 h-3.5 rounded-full bg-gradient-to-b from-cyan-400 via-emerald-400 to-purple-500 shadow-[0_0_6px_rgba(6,182,212,0.6)]" />
+              </div>
+              <span className="hidden sm:inline">Lighting</span>
+            </button>
+
+            {/* Button 3: Save Option */}
+            <button
+              onClick={handleSaveConfig}
+              title="Save Preset Configuration to Device"
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                hasSavedPreset 
+                  ? 'bg-emerald-950 text-emerald-300 border border-emerald-700/80 shadow-sm' 
+                  : 'text-zinc-300 hover:text-white hover:bg-zinc-900'
+              }`}
+            >
+              {hasSavedPreset ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Saved!</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-3.5 h-3.5 text-zinc-300" />
+                  <span>Save</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Save confirmation banner */}
+        {hasSavedPreset && (
+          <div className="mb-4 p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-800 text-emerald-300 text-xs font-medium flex items-center justify-between animate-fadeIn">
+            <div className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-emerald-400" />
+              <span>PhantomIsland configuration saved to device storage!</span>
+            </div>
+            <span className="text-[10px] font-mono text-emerald-400">SAVED</span>
+          </div>
+        )}
+
+        {/* REFINED TAB-WISE LAYOUT (NO HORIZONTAL SIDE-SCROLLING) */}
+        <div className="mb-6">
+          {activeCategory === 'island' ? (
+            /* 6 Island Tabs in clean non-scrolling grid */
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               <button
-                onClick={() => onDisplayModeChange('phone')}
-                title="Smartphone Viewport"
-                className={`p-1.5 rounded-lg transition-colors ${
-                  displayMode === 'phone' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'
+                onClick={() => onSelectTab('calibration')}
+                className={`p-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 border ${
+                  selectedTab === 'calibration'
+                    ? 'bg-zinc-800 border-zinc-600 text-white shadow-md'
+                    : 'bg-zinc-950/80 border-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
                 }`}
               >
-                <Smartphone className="w-4 h-4" />
+                <Move className="w-3.5 h-3.5 text-zinc-300 shrink-0" />
+                <span className="truncate">Position &amp; Size</span>
               </button>
+
               <button
-                onClick={() => onDisplayModeChange('dock')}
-                title="Browser Top Edge Dock"
-                className={`p-1.5 rounded-lg transition-colors ${
-                  displayMode === 'dock' ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'
+                onClick={() => onSelectTab('expansion')}
+                className={`p-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 border ${
+                  selectedTab === 'expansion'
+                    ? 'bg-zinc-800 border-zinc-600 text-white shadow-md'
+                    : 'bg-zinc-950/80 border-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
                 }`}
               >
-                <Monitor className="w-4 h-4" />
+                <Workflow className="w-3.5 h-3.5 text-zinc-300 shrink-0" />
+                <span className="truncate">Expansion &amp; Motion</span>
+              </button>
+
+              <button
+                onClick={() => onSelectTab('battery-ring')}
+                className={`p-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 border ${
+                  selectedTab === 'battery-ring'
+                    ? 'bg-zinc-800 border-zinc-600 text-white shadow-md'
+                    : 'bg-zinc-950/80 border-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+                }`}
+              >
+                <BatteryCharging className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="truncate">Battery Ring</span>
+              </button>
+
+              <button
+                onClick={() => onSelectTab('triggers')}
+                className={`p-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 border ${
+                  selectedTab === 'triggers'
+                    ? 'bg-zinc-800 border-zinc-600 text-white shadow-md'
+                    : 'bg-zinc-950/80 border-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+                }`}
+              >
+                <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="truncate">Trigger Lab</span>
+              </button>
+
+              <button
+                onClick={() => onSelectTab('aesthetics')}
+                className={`p-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 border ${
+                  selectedTab === 'aesthetics'
+                    ? 'bg-zinc-800 border-zinc-600 text-white shadow-md'
+                    : 'bg-zinc-950/80 border-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+                }`}
+              >
+                <Palette className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                <span className="truncate">Aesthetics</span>
+              </button>
+
+              <button
+                onClick={() => onSelectTab('system-overlay')}
+                className={`p-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 border ${
+                  selectedTab === 'system-overlay'
+                    ? 'bg-zinc-800 border-zinc-600 text-white shadow-md'
+                    : 'bg-zinc-950/80 border-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                <span className="truncate">System &amp; Overlay</span>
               </button>
             </div>
-          </div>
+          ) : (
+            /* 2 Lighting Tabs in clean non-scrolling grid */
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => onSelectTab('edge-lighting')}
+                className={`p-3 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 border ${
+                  selectedTab === 'edge-lighting'
+                    ? 'bg-zinc-800 border-zinc-600 text-white shadow-md'
+                    : 'bg-zinc-950/80 border-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+                }`}
+              >
+                <Sun className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>Screen Edge Lighting</span>
+              </button>
+
+              <button
+                onClick={() => onSelectTab('island-border')}
+                className={`p-3 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 border ${
+                  selectedTab === 'island-border'
+                    ? 'bg-zinc-800 border-zinc-600 text-white shadow-md'
+                    : 'bg-zinc-950/80 border-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+                }`}
+              >
+                <CircleDot className="w-4 h-4 text-cyan-400 shrink-0" />
+                <span>PhantomIsland Border FX</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* TAB 1: POSITION & SIZE (CALIBRATION SLIDERS) */}
@@ -323,7 +443,7 @@ export const ControlStudio: React.FC<ControlStudioProps> = ({
                       : 'bg-zinc-950/60 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
                   }`}
                 >
-                  <div className="text-xs font-semibold text-white">Dynamic Island</div>
+                  <div className="text-xs font-semibold text-white">PhantomIsland Standard</div>
                   <div className="text-[10px] text-zinc-400 font-mono mt-0.5">Y: 10px | W: 124px</div>
                 </button>
 
@@ -1488,7 +1608,7 @@ export const ControlStudio: React.FC<ControlStudioProps> = ({
           <div className="space-y-6 animate-fadeIn">
             <div>
               <h2 className="text-sm font-semibold text-white tracking-tight">
-                Dynamic Island Border &amp; Ring FX
+                PhantomIsland Border &amp; Ring FX
               </h2>
               <p className="text-xs text-zinc-400 mt-1">
                 Architectural perimeter outlines and audio-reactive rings wrapping directly around the camera notch pill.
@@ -2149,6 +2269,473 @@ export const ControlStudio: React.FC<ControlStudioProps> = ({
             </div>
           </div>
         )}
+
+        {/* TAB 8: SYSTEM & OVERLAY (DISPLAY OVER APPS, ROOT & NON-ROOT KEEP-ALIVE) */}
+        {selectedTab === 'system-overlay' && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* Real Hardware Overlay Banner */}
+            <div className="p-4 bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 rounded-2xl border border-zinc-700/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">
+                    Real Device Overlay Engine
+                  </span>
+                </div>
+                <h3 className="text-sm font-semibold text-white mt-1">
+                  Run Live on Your Physical Phone Screen
+                </h3>
+                <p className="text-xs text-zinc-400 mt-0.5 leading-relaxed">
+                  Anchor the dynamic island directly onto your actual smartphone camera cutout with immersive fullscreen and hardware wake-lock.
+                </p>
+              </div>
+
+              <button
+                onClick={() => onDisplayModeChange('real-overlay')}
+                className="px-4 py-2 rounded-xl bg-white text-black text-xs font-bold hover:bg-zinc-200 transition-colors shrink-0 flex items-center justify-center gap-2 shadow-lg"
+              >
+                <Maximize2 className="w-4 h-4" />
+                <span>Launch on My Phone</span>
+              </button>
+            </div>
+
+            {/* Section 1: Display Over Other Apps & Orientation */}
+            <div>
+              <h2 className="text-sm font-semibold text-white tracking-tight flex items-center justify-between">
+                <span>Display Over Other Apps &amp; Screen Behavior</span>
+                <span className="text-xs font-mono text-zinc-400">SYSTEM_ALERT_WINDOW</span>
+              </h2>
+              <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+                Control how the floating island renders on top of the home launcher, third-party apps, games, and lock screen.
+              </p>
+
+              <div className="mt-4 space-y-3">
+                {/* Display Over Apps Master */}
+                <div className="p-3.5 bg-zinc-950/80 rounded-2xl border border-zinc-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <Shield className="w-4 h-4 text-emerald-400" />
+                    <div>
+                      <div className="text-xs font-medium text-white">Display Over Other Apps</div>
+                      <div className="text-[11px] text-zinc-400">Draws floating window over all apps and homescreen</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => updateSystemOverlay({ displayOverApps: !config.systemOverlay.displayOverApps })}
+                    className={`w-11 h-6 rounded-full transition-colors p-0.5 relative ${
+                      config.systemOverlay.displayOverApps ? 'bg-white' : 'bg-zinc-800'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-full bg-black transition-transform ${
+                        config.systemOverlay.displayOverApps ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Show in Fullscreen Games & Media */}
+                <div className="p-3.5 bg-zinc-950/80 rounded-2xl border border-zinc-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <Maximize2 className="w-4 h-4 text-zinc-300" />
+                    <div>
+                      <div className="text-xs font-medium text-white">Show in Fullscreen Games &amp; Media</div>
+                      <div className="text-[11px] text-zinc-400">Stay visible when immersive mode is active</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => updateSystemOverlay({ showInFullScreenGames: !config.systemOverlay.showInFullScreenGames })}
+                    className={`w-11 h-6 rounded-full transition-colors p-0.5 relative ${
+                      config.systemOverlay.showInFullScreenGames ? 'bg-white' : 'bg-zinc-800'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-full bg-black transition-transform ${
+                        config.systemOverlay.showInFullScreenGames ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Hide on Lock Screen */}
+                <div className="p-3.5 bg-zinc-950/80 rounded-2xl border border-zinc-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <Eye className="w-4 h-4 text-zinc-300" />
+                    <div>
+                      <div className="text-xs font-medium text-white">Hide on Lock Screen &amp; AOD</div>
+                      <div className="text-[11px] text-zinc-400">Automatically collapse when phone is locked</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => updateSystemOverlay({ hideOnLockScreen: !config.systemOverlay.hideOnLockScreen })}
+                    className={`w-11 h-6 rounded-full transition-colors p-0.5 relative ${
+                      config.systemOverlay.hideOnLockScreen ? 'bg-white' : 'bg-zinc-800'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-full bg-black transition-transform ${
+                        config.systemOverlay.hideOnLockScreen ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Landscape Orientation Behavior */}
+                <div className="p-3.5 bg-zinc-950/80 rounded-2xl border border-zinc-800">
+                  <div className="text-xs font-medium text-white mb-1">Landscape Screen Behavior</div>
+                  <div className="text-[11px] text-zinc-400 mb-2.5">
+                    Choose how the island behaves when rotating device horizontally:
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <button
+                      onClick={() => updateSystemOverlay({ landscapeBehavior: 'stay-over-camera' })}
+                      className={`p-2.5 rounded-xl border text-left text-xs transition-colors ${
+                        config.systemOverlay.landscapeBehavior === 'stay-over-camera'
+                          ? 'bg-zinc-800 border-white text-white font-semibold'
+                          : 'bg-zinc-900/60 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      <div className="font-medium text-white">Stay Over Camera</div>
+                      <div className="text-[10px] text-zinc-400 mt-0.5">Locks with physical camera sensor</div>
+                    </button>
+
+                    <button
+                      onClick={() => updateSystemOverlay({ landscapeBehavior: 'rotate-to-top' })}
+                      className={`p-2.5 rounded-xl border text-left text-xs transition-colors ${
+                        config.systemOverlay.landscapeBehavior === 'rotate-to-top'
+                          ? 'bg-zinc-800 border-white text-white font-semibold'
+                          : 'bg-zinc-900/60 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      <div className="font-medium text-white">Rotate to Top</div>
+                      <div className="text-[10px] text-zinc-400 mt-0.5">Moves to current top bezel</div>
+                    </button>
+
+                    <button
+                      onClick={() => updateSystemOverlay({ landscapeBehavior: 'hide-in-landscape' })}
+                      className={`p-2.5 rounded-xl border text-left text-xs transition-colors ${
+                        config.systemOverlay.landscapeBehavior === 'hide-in-landscape'
+                          ? 'bg-zinc-800 border-white text-white font-semibold'
+                          : 'bg-zinc-900/60 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      <div className="font-medium text-white">Hide in Landscape</div>
+                      <div className="text-[10px] text-zinc-400 mt-0.5">Auto-collapses for games &amp; video</div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Auto-Collapse Timeout */}
+                <div className="p-3.5 bg-zinc-950/80 rounded-2xl border border-zinc-800">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-white">Auto-Collapse / Idle Timer</span>
+                    <span className="text-xs font-mono text-zinc-400">
+                      {config.systemOverlay.autoHideSeconds === 0 ? 'Never (Persistent)' : `${config.systemOverlay.autoHideSeconds} seconds`}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {[0, 3, 5, 8, 15].map((sec) => (
+                      <button
+                        key={sec}
+                        onClick={() => updateSystemOverlay({ autoHideSeconds: sec })}
+                        className={`flex-1 py-1.5 rounded-lg text-xs font-mono transition-colors ${
+                          config.systemOverlay.autoHideSeconds === sec
+                            ? 'bg-white text-black font-semibold'
+                            : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-white'
+                        }`}
+                      >
+                        {sec === 0 ? 'Never' : `${sec}s`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 2: Keep-Alive Suite for Non-Root Users */}
+            <div className="pt-4 border-t border-zinc-800/80">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-semibold text-white tracking-tight flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    <span>Non-Root Keep-Alive Suite</span>
+                  </h2>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    Prevent Android OEM memory managers (Samsung OneUI, Xiaomi MIUI, ColorOS) from killing the overlay.
+                  </p>
+                </div>
+                <span className="text-[10px] font-mono px-2 py-0.5 bg-emerald-950/50 text-emerald-400 border border-emerald-800/60 rounded">
+                  SAFE FOR ALL DEVICES
+                </span>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {/* Ignore Battery Optimization */}
+                <div className="p-3.5 bg-zinc-950/80 rounded-2xl border border-zinc-800 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-medium text-white">Ignore Battery Optimization (Doze Whitelist)</div>
+                    <div className="text-[11px] text-zinc-400">Exempts app from aggressive standby &amp; sleep throttling</div>
+                  </div>
+                  <button
+                    onClick={() => updateSystemOverlay({ ignoreBatteryOptimization: !config.systemOverlay.ignoreBatteryOptimization })}
+                    className={`w-11 h-6 rounded-full transition-colors p-0.5 relative ${
+                      config.systemOverlay.ignoreBatteryOptimization ? 'bg-white' : 'bg-zinc-800'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-full bg-black transition-transform ${
+                        config.systemOverlay.ignoreBatteryOptimization ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Unrestricted Background Data */}
+                <div className="p-3.5 bg-zinc-950/80 rounded-2xl border border-zinc-800 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-medium text-white">Allow Unrestricted Background Data</div>
+                    <div className="text-[11px] text-zinc-400">Permits album art &amp; real-time notifications when data saver is on</div>
+                  </div>
+                  <button
+                    onClick={() => updateSystemOverlay({ unrestrictedData: !config.systemOverlay.unrestrictedData })}
+                    className={`w-11 h-6 rounded-full transition-colors p-0.5 relative ${
+                      config.systemOverlay.unrestrictedData ? 'bg-white' : 'bg-zinc-800'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-full bg-black transition-transform ${
+                        config.systemOverlay.unrestrictedData ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Foreground Sticky Notification Service */}
+                <div className="p-3.5 bg-zinc-950/80 rounded-2xl border border-zinc-800 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-medium text-white">Foreground Sticky Service</div>
+                    <div className="text-[11px] text-zinc-400">Maintains foreground process priority in Android OS</div>
+                  </div>
+                  <button
+                    onClick={() => updateSystemOverlay({ foregroundService: !config.systemOverlay.foregroundService })}
+                    className={`w-11 h-6 rounded-full transition-colors p-0.5 relative ${
+                      config.systemOverlay.foregroundService ? 'bg-white' : 'bg-zinc-800'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-full bg-black transition-transform ${
+                        config.systemOverlay.foregroundService ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Accessibility Service Protection */}
+                <div className="p-3.5 bg-zinc-950/80 rounded-2xl border border-zinc-800 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-medium text-white flex items-center gap-1.5">
+                      <span>Accessibility Service Keep-Alive</span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 bg-zinc-800 text-zinc-300 rounded">
+                        oom_score_adj ≤ 0
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-zinc-400">Binds to Android system event bus; OS will never kill this process</div>
+                  </div>
+                  <button
+                    onClick={() => updateSystemOverlay({ accessibilityService: !config.systemOverlay.accessibilityService })}
+                    className={`w-11 h-6 rounded-full transition-colors p-0.5 relative ${
+                      config.systemOverlay.accessibilityService ? 'bg-white' : 'bg-zinc-800'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-full bg-black transition-transform ${
+                        config.systemOverlay.accessibilityService ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* ADB One-Click Copy Box for Non-Root */}
+                <div className="p-3.5 bg-zinc-950 rounded-2xl border border-zinc-800">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <Terminal className="w-3.5 h-3.5 text-zinc-400" />
+                      <span className="text-xs font-medium text-white">ADB Instant Permission Grant</span>
+                    </div>
+                    <button
+                      onClick={() =>
+                        copyToClipboard(
+                          `adb shell pm grant com.dynamicnotch.app android.permission.SYSTEM_ALERT_WINDOW\nadb shell dumpsys deviceidle whitelist +com.dynamicnotch.app\nadb shell cmd appops set com.dynamicnotch.app RUN_IN_BACKGROUND allow`,
+                          'adb-commands'
+                        )
+                      }
+                      className="text-[11px] font-medium text-zinc-300 hover:text-white flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800"
+                    >
+                      {copiedKey === 'adb-commands' ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-400" />
+                          <span>Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3 text-zinc-400" />
+                          <span>Copy Commands</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-zinc-400 mb-2">
+                    Execute via USB debugging on any PC or wireless debugging via Shizuku / LADB:
+                  </p>
+                  <pre className="p-2.5 rounded-lg bg-black text-[11px] font-mono text-zinc-300 overflow-x-auto leading-relaxed border border-zinc-900">
+                    adb shell pm grant com.dynamicnotch.app android.permission.SYSTEM_ALERT_WINDOW{'\n'}
+                    adb shell dumpsys deviceidle whitelist +com.dynamicnotch.app{'\n'}
+                    adb shell cmd appops set com.dynamicnotch.app RUN_IN_BACKGROUND allow
+                  </pre>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: Root User Engine (Low-Level System Privileges) */}
+            <div className="pt-4 border-t border-zinc-800/80">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-semibold text-white tracking-tight flex items-center gap-2">
+                    <Cpu className="w-4 h-4 text-purple-400" />
+                    <span>Root User Engine &amp; System Priv-App</span>
+                  </h2>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    For Magisk, KernelSU, and APatch rooted Android smartphones.
+                  </p>
+                </div>
+                <span className="text-[10px] font-mono px-2 py-0.5 bg-purple-950/50 text-purple-300 border border-purple-800/60 rounded">
+                  ROOT / MAGISK
+                </span>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {/* Root Engine Master Toggle */}
+                <div className="p-3.5 bg-zinc-950/80 rounded-2xl border border-zinc-800 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-medium text-white">Enable Root Engine Privileges</div>
+                    <div className="text-[11px] text-zinc-400">Allows direct /proc memory priority and init watchdog execution</div>
+                  </div>
+                  <button
+                    onClick={() => updateSystemOverlay({ rootModeEnabled: !config.systemOverlay.rootModeEnabled })}
+                    className={`w-11 h-6 rounded-full transition-colors p-0.5 relative ${
+                      config.systemOverlay.rootModeEnabled ? 'bg-purple-500' : 'bg-zinc-800'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-full bg-black transition-transform ${
+                        config.systemOverlay.rootModeEnabled ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {config.systemOverlay.rootModeEnabled && (
+                  <>
+                    {/* System Priv-App Toggle */}
+                    <div className="p-3.5 bg-zinc-950/80 rounded-2xl border border-zinc-800 flex items-center justify-between">
+                      <div>
+                        <div className="text-xs font-medium text-white">Run as /system/priv-app/DynamicNotch</div>
+                        <div className="text-[11px] text-zinc-400">Grants privileged system-app tier; immune to OEM task kill</div>
+                      </div>
+                      <button
+                        onClick={() => updateSystemOverlay({ systemPrivApp: !config.systemOverlay.systemPrivApp })}
+                        className={`w-11 h-6 rounded-full transition-colors p-0.5 relative ${
+                          config.systemOverlay.systemPrivApp ? 'bg-white' : 'bg-zinc-800'
+                        }`}
+                      >
+                        <div
+                          className={`w-5 h-5 rounded-full bg-black transition-transform ${
+                            config.systemOverlay.systemPrivApp ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Magisk Module Integration */}
+                    <div className="p-3.5 bg-zinc-950/80 rounded-2xl border border-zinc-800 flex items-center justify-between">
+                      <div>
+                        <div className="text-xs font-medium text-white">Magisk / KernelSU Systemless Module Mode</div>
+                        <div className="text-[11px] text-zinc-400">Mounts overlay directly at boot without modifying /system partition</div>
+                      </div>
+                      <button
+                        onClick={() => updateSystemOverlay({ magiskModuleSupport: !config.systemOverlay.magiskModuleSupport })}
+                        className={`w-11 h-6 rounded-full transition-colors p-0.5 relative ${
+                          config.systemOverlay.magiskModuleSupport ? 'bg-white' : 'bg-zinc-800'
+                        }`}
+                      >
+                        <div
+                          className={`w-5 h-5 rounded-full bg-black transition-transform ${
+                            config.systemOverlay.magiskModuleSupport ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Auto-Restart Watchdog Daemon */}
+                    <div className="p-3.5 bg-zinc-950/80 rounded-2xl border border-zinc-800 flex items-center justify-between">
+                      <div>
+                        <div className="text-xs font-medium text-white">Root Watchdog Auto-Restart Daemon</div>
+                        <div className="text-[11px] text-zinc-400">Spawns init watchdog daemon that revives overlay in &lt;200ms if killed</div>
+                      </div>
+                      <button
+                        onClick={() => updateSystemOverlay({ restartOnOOMKill: !config.systemOverlay.restartOnOOMKill })}
+                        className={`w-11 h-6 rounded-full transition-colors p-0.5 relative ${
+                          config.systemOverlay.restartOnOOMKill ? 'bg-white' : 'bg-zinc-800'
+                        }`}
+                      >
+                        <div
+                          className={`w-5 h-5 rounded-full bg-black transition-transform ${
+                            config.systemOverlay.restartOnOOMKill ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Root Shell One-Click Copy */}
+                    <div className="p-3.5 bg-zinc-950 rounded-2xl border border-zinc-800">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <Terminal className="w-3.5 h-3.5 text-purple-400" />
+                          <span className="text-xs font-medium text-white">Root Shell Privilege Elevators</span>
+                        </div>
+                        <button
+                          onClick={() =>
+                            copyToClipboard(
+                              `su -c pm grant com.dynamicnotch.app android.permission.SYSTEM_ALERT_WINDOW\nsu -c echo -1000 > /proc/$(pidof com.dynamicnotch.app)/oom_score_adj`,
+                              'root-commands'
+                            )
+                          }
+                          className="text-[11px] font-medium text-zinc-300 hover:text-white flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800"
+                        >
+                          {copiedKey === 'root-commands' ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-400" />
+                              <span>Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3 text-zinc-400" />
+                              <span>Copy su Commands</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      <pre className="p-2.5 rounded-lg bg-black text-[11px] font-mono text-purple-300/90 overflow-x-auto leading-relaxed border border-zinc-900">
+                        su -c pm grant com.dynamicnotch.app android.permission.SYSTEM_ALERT_WINDOW{'\n'}
+                        su -c echo -1000 &gt; /proc/$(pidof com.dynamicnotch.app)/oom_score_adj
+                      </pre>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Footer Reset & Status */}
@@ -2176,7 +2763,7 @@ export const ControlStudio: React.FC<ControlStudioProps> = ({
               showCameraCalibrationRing: false,
               showCrosshairs: false,
               batteryRing: {
-                enabled: true,
+                enabled: false,
                 thickness: 2.5,
                 ringGap: 2,
                 startAngle: 0,
@@ -2200,18 +2787,18 @@ export const ControlStudio: React.FC<ControlStudioProps> = ({
               autoExpandOnMusic: true,
               autoExpandOnNotification: true,
               autoExpandOnCharger: true,
-              finish: 'obsidian',
-              edgeGlow: 'silver',
-              blurStrength: 'subtle',
-              ambientGlow: true,
+              finish: 'pure-black',
+              edgeGlow: 'none',
+              blurStrength: 'none',
+              ambientGlow: false,
               soundEnabled: true,
               hapticsEnabled: true,
               autoCollapseSeconds: 5,
-              showMiniWaveform: true,
-              showMiniTimer: true,
-              showMiniBattery: true,
+              showMiniWaveform: false,
+              showMiniTimer: false,
+              showMiniBattery: false,
               edgeLighting: {
-                enabled: true,
+                enabled: false,
                 pattern: 'orbit-chase',
                 thickness: 3,
                 inset: 0,
@@ -2223,7 +2810,7 @@ export const ControlStudio: React.FC<ControlStudioProps> = ({
                 trigger: 'always',
               },
               islandBorder: {
-                enabled: true,
+                enabled: false,
                 pattern: 'orbit-chase',
                 thickness: 2,
                 glowBlur: 8,
@@ -2231,8 +2818,23 @@ export const ControlStudio: React.FC<ControlStudioProps> = ({
                 colors: ['#ffffff', '#a1a1aa', '#52525b', '#ffffff'],
                 colorPreset: 'monochrome-silver',
               },
+              systemOverlay: {
+                displayOverApps: true,
+                showInFullScreenGames: true,
+                hideOnLockScreen: false,
+                landscapeBehavior: 'stay-over-camera',
+                autoHideSeconds: 0,
+                ignoreBatteryOptimization: true,
+                unrestrictedData: true,
+                foregroundService: true,
+                accessibilityService: true,
+                rootModeEnabled: false,
+                systemPrivApp: false,
+                magiskModuleSupport: false,
+                restartOnOOMKill: true,
+              },
             });
-            onModuleChange('music');
+            onModuleChange('idle');
           }}
           className="flex items-center gap-1.5 text-zinc-400 hover:text-white transition-colors"
         >

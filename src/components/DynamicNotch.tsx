@@ -353,6 +353,37 @@ export const DynamicNotch: React.FC<DynamicNotchProps> = ({
     ? config.slideDownDistance
     : 0;
 
+  // Camera Cutout Deadzone Calculation: ensures left & right wings never overlap physical lens
+  const ringGap = config.batteryRing?.enabled ? (config.batteryRing.ringGap || 2) + (config.batteryRing.thickness || 2.5) : 0;
+  const deadzoneWidth = Math.max(config.cameraHoleSize + ringGap * 2 + 14, 28);
+
+  const getPillPadding = (): React.CSSProperties => {
+    if (config.shape === 'left-punch') {
+      return { paddingLeft: `${deadzoneWidth + 8}px`, paddingRight: '12px' };
+    }
+    if (config.shape === 'right-punch') {
+      return { paddingLeft: '12px', paddingRight: `${deadzoneWidth + 8}px` };
+    }
+    return { paddingLeft: '12px', paddingRight: '12px' };
+  };
+
+  const renderCameraDeadzone = () => {
+    if (config.shape === 'left-punch' || config.shape === 'right-punch') {
+      return null;
+    }
+    return (
+      <div 
+        className="shrink-0 pointer-events-none"
+        style={{ 
+          width: `${deadzoneWidth}px`, 
+          height: `${config.cameraHoleSize}px`,
+          marginLeft: `${config.cameraHoleOffsetX}px`
+        }} 
+        aria-hidden="true"
+      />
+    );
+  };
+
   return (
     <div 
       className={`relative z-50 flex justify-center pointer-events-auto select-none transition-transform duration-150 ${
@@ -443,13 +474,16 @@ export const DynamicNotch: React.FC<DynamicNotchProps> = ({
           </div>
         )}
 
-        {/* 1. COMPACT / IDLE STATE VIEW */}
+        {/* 1. COMPACT / IDLE STATE VIEW (Acknowledges camera position/size with zero overlap) */}
         {!isExpanded && (
-          <div className="w-full h-full px-3 py-1 flex items-center justify-between text-xs font-medium tracking-tight">
+          <div 
+            className="w-full h-full flex items-center justify-between text-xs font-medium tracking-tight overflow-hidden"
+            style={getPillPadding()}
+          >
             {customNotification ? (
-              /* Custom Notification Compact Toast */
-              <div className="w-full flex items-center justify-between gap-2.5">
-                <div className="flex items-center gap-2 overflow-hidden">
+              /* Custom Notification Compact Toast with Camera Deadzone */
+              <div className="w-full flex items-center justify-between gap-1 overflow-hidden">
+                <div className="flex-1 flex items-center gap-2 overflow-hidden pr-1">
                   <div className="w-5 h-5 rounded-full bg-zinc-800 flex items-center justify-center text-white shrink-0">
                     <Radio className="w-3 h-3 text-white" />
                   </div>
@@ -458,113 +492,118 @@ export const DynamicNotch: React.FC<DynamicNotchProps> = ({
                     <span className="text-zinc-400">{customNotification.message}</span>
                   </div>
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onClearNotification) onClearNotification();
-                  }}
-                  className="p-1 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition-colors"
-                  aria-label="Dismiss notification"
-                >
-                  <X className="w-3 h-3" />
-                </button>
+
+                {/* Deadzone Spacer keeping text/icons away from camera */}
+                {renderCameraDeadzone()}
+
+                <div className="shrink-0 flex items-center justify-end pl-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onClearNotification) onClearNotification();
+                    }}
+                    className="p-1 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition-colors"
+                    aria-label="Dismiss notification"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
             ) : activeModule === 'music' ? (
               /* Real Live Music Visualizer & Track */
-              <div className="w-full flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
+              <div className="w-full flex items-center justify-between overflow-hidden">
+                {/* Left Wing: Track Info */}
+                <div className="flex-1 flex items-center gap-2 overflow-hidden pr-1">
                   <img
                     src="/src/assets/images/monochrome_album_art_1793716690539.jpg"
                     alt="Album Art"
                     referrerPolicy="no-referrer"
-                    className="w-5 h-5 rounded-full object-cover border border-zinc-700/80"
+                    className="w-4.5 h-4.5 rounded-full object-cover border border-zinc-700/80 shrink-0"
                     style={{
                       transform: isPlaying ? 'rotate(360deg)' : 'none',
                       transition: isPlaying ? 'transform 12s linear infinite' : 'none',
                     }}
                   />
-                  <span className="text-[11px] font-semibold text-zinc-200 truncate max-w-[96px]">
+                  <span className="text-[11px] font-semibold text-zinc-200 truncate">
                     {currentTrack.title}
                   </span>
                 </div>
-                {/* Real-time Frequency Spectrum Bars */}
-                {config.showMiniWaveform && (
-                  <div className="flex items-end gap-[2px] h-4 pr-1">
-                    {visualizerHeights.map((h, i) => (
-                      <div
-                        key={i}
-                        className="w-[2.5px] rounded-full bg-zinc-100 transition-all duration-75"
-                        style={{ height: `${h}px` }}
-                      />
-                    ))}
-                  </div>
-                )}
+
+                {/* Deadzone Clearance Spacer */}
+                {renderCameraDeadzone()}
+
+                {/* Right Wing: Frequency Visualizer Spectrum */}
+                <div className="shrink-0 flex items-center justify-end pl-1">
+                  {config.showMiniWaveform ? (
+                    <div className="flex items-end gap-[2px] h-3.5 pr-0.5">
+                      {visualizerHeights.map((h, i) => (
+                        <div
+                          key={i}
+                          className="w-[2.5px] rounded-full bg-zinc-100 transition-all duration-75"
+                          style={{ height: `${Math.max(3, h * 0.6)}px` }}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                  )}
+                </div>
               </div>
             ) : activeModule === 'call' ? (
               /* VoIP Call */
-              <div className="w-full flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 text-zinc-200">
-                  <div className="w-4 h-4 rounded-full bg-zinc-800 flex items-center justify-center">
+              <div className="w-full flex items-center justify-between overflow-hidden">
+                {/* Left Wing: Call Contact */}
+                <div className="flex-1 flex items-center gap-1.5 text-zinc-200 overflow-hidden pr-1">
+                  <div className="w-4 h-4 rounded-full bg-zinc-800 flex items-center justify-center shrink-0">
                     <Phone className="w-2.5 h-2.5 text-white" />
                   </div>
-                  <span className="text-[11px] font-medium text-zinc-300">Elena</span>
+                  <span className="text-[11px] font-medium text-zinc-300 truncate">Elena</span>
                 </div>
-                <div className="flex items-center gap-1 font-mono-numbers text-[11px] text-zinc-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+
+                {/* Deadzone Clearance Spacer */}
+                {renderCameraDeadzone()}
+
+                {/* Right Wing: Call Timer */}
+                <div className="shrink-0 flex items-center gap-1 font-mono-numbers text-[11px] text-zinc-400 pl-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   <span>{formatTime(callSeconds)}</span>
                 </div>
               </div>
             ) : activeModule === 'timer' ? (
               /* Live Pomodoro Countdown */
-              <div className="w-full flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 text-zinc-200">
-                  <Clock className="w-3 h-3 text-zinc-400" />
-                  <span className="text-[11px] font-medium text-zinc-300">Focus</span>
+              <div className="w-full flex items-center justify-between overflow-hidden">
+                <div className="flex-1 flex items-center gap-1.5 text-zinc-200 pr-1">
+                  <Clock className="w-3 h-3 text-zinc-400 shrink-0" />
+                  <span className="text-[11px] font-medium text-zinc-300 truncate">Focus</span>
                 </div>
-                {config.showMiniTimer && (
-                  <span className="font-mono-numbers text-[11px] font-semibold text-white">
-                    {formatTime(timerSeconds)}
-                  </span>
-                )}
+
+                {/* Deadzone Clearance Spacer */}
+                {renderCameraDeadzone()}
+
+                <div className="shrink-0 font-mono-numbers text-[11px] font-semibold text-white pl-1">
+                  {formatTime(timerSeconds)}
+                </div>
               </div>
             ) : activeModule === 'battery' ? (
-              /* Real or Simulated Battery status */
-              <div className="w-full flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5">
-                  <BatteryCharging className="w-3.5 h-3.5 text-zinc-200" />
-                  <span className="text-[11px] font-medium text-zinc-300">
-                    {batteryState.charging ? 'Fast 67W' : 'Battery'}
+              /* Battery Charging Status */
+              <div className="w-full flex items-center justify-between overflow-hidden">
+                <div className="flex-1 flex items-center gap-1.5 pr-1">
+                  <BatteryCharging className="w-3.5 h-3.5 text-zinc-200 shrink-0" />
+                  <span className="text-[11px] font-medium text-zinc-300 truncate">
+                    {batteryState.charging ? 'Dash 67W' : 'Battery'}
                   </span>
                 </div>
-                {config.showMiniBattery && (
-                  <span className="font-mono-numbers text-[11px] font-bold text-white">
-                    {batteryState.level}%
-                  </span>
-                )}
-              </div>
-            ) : activeModule === 'delivery' ? (
-              /* Courier */
-              <div className="w-full flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5">
-                  <Navigation className="w-3 h-3 text-zinc-300" />
-                  <span className="text-[11px] font-medium text-zinc-300">Obsidian Brew</span>
+
+                {/* Deadzone Clearance Spacer */}
+                {renderCameraDeadzone()}
+
+                <div className="shrink-0 font-mono-numbers text-[11px] font-bold text-white pl-1">
+                  {batteryState.level}%
                 </div>
-                <span className="text-[11px] font-mono-numbers text-white font-medium">3 min</span>
-              </div>
-            ) : activeModule === 'sports' ? (
-              /* Live Sports */
-              <div className="w-full flex items-center justify-between gap-2">
-                <span className="text-[11px] font-mono-numbers text-white">RMA 2 - 1 MCI</span>
-                <span className="text-[10px] text-zinc-400">84'</span>
               </div>
             ) : (
-              /* Idle Notch */
-              <div className="w-full flex items-center justify-between px-1 opacity-80 hover:opacity-100 transition-opacity">
-                <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">
-                  {config.shape}
-                </span>
-                <div className="w-1.5 h-1.5 rounded-full bg-zinc-600 group-hover:bg-zinc-300 transition-colors" />
-              </div>
+              /* Idle State: 100% PURE BLACK PILL - Clean, silent, zero text or dots under camera */
+              <div className="w-full h-full" />
             )}
           </div>
         )}
@@ -584,7 +623,7 @@ export const DynamicNotch: React.FC<DynamicNotchProps> = ({
               <div className="flex items-center justify-between pb-3 border-b border-zinc-800 mb-3">
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] uppercase tracking-wider font-mono text-zinc-400">
-                    Dynamic Island
+                    PhantomIsland
                   </span>
                   <span className="text-zinc-600">·</span>
                   <span className="text-xs font-semibold text-zinc-200 capitalize">

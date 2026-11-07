@@ -92,7 +92,7 @@ bubblewrap build`;
                 </span>
               </h2>
               <p className="text-xs text-zinc-400">
-                Package Dynamic Notch into an installable Android APK or open in Android Studio
+                Package PhantomIsland into an installable Android APK or open in Android Studio
               </p>
             </div>
           </div>
@@ -183,7 +183,7 @@ bubblewrap build`;
                       </span>
                     </h3>
                     <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                      Third-party overlay apps (like Ring Launcher, Energy Ring, dynamicSpot) get killed constantly by Android aggressive battery managers (MIUI, OneUI, ColorOS). By compiling as a <strong>Native Android Home Launcher</strong>, your phone keeps the Dynamic Island &amp; Camera Battery Ring alive 24/7 with zero battery throttling!
+                      Third-party overlay apps (like Ring Launcher, Energy Ring, dynamicSpot) get killed constantly by Android aggressive battery managers (MIUI, OneUI, ColorOS). By compiling as a <strong>Native Android Home Launcher</strong>, your phone keeps PhantomIsland &amp; the Camera Battery Ring alive 24/7 with zero battery throttling!
                     </p>
                   </div>
                 </div>
@@ -215,7 +215,7 @@ bubblewrap build`;
                   <ol className="text-xs text-zinc-300 space-y-1 list-decimal list-inside leading-relaxed">
                     <li>Download and install the APK on your Android device.</li>
                     <li>Open phone <strong>Settings &gt; Apps &gt; Default Apps &gt; Home app</strong>.</li>
-                    <li>Select <strong>Dynamic Notch</strong> as your default Home Launcher.</li>
+                    <li>Select <strong>PhantomIsland</strong> as your default Home Launcher.</li>
                     <li>Your camera punch hole battery ring and morphing island will now stay permanently active!</li>
                   </ol>
                 </div>
@@ -252,15 +252,19 @@ bubblewrap build`;
                       Complete Native Android Studio Project
                     </h3>
                     <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                      Generates a full ready-to-compile Android project configured with <strong>display cutout rendering</strong>, <strong>floating overlay permissions</strong> (`SYSTEM_ALERT_WINDOW`), Gradle build scripts, and native Android edge-to-edge windowing.
+                      Generates a full ready-to-compile Android project configured with <strong>display cutout rendering</strong>, <strong>IslandOverlayService.kt</strong> (`SYSTEM_ALERT_WINDOW` floating overlay), <strong>IslandAccessibilityService.kt</strong> (zero-kill process immunity), <strong>BootReceiver.kt</strong> (autostart on reboot), and native Android edge-to-edge windowing.
                     </p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-xs font-mono text-zinc-300 pt-1">
+                <div className="grid grid-cols-3 gap-2 text-xs font-mono text-zinc-300 pt-1">
                   <div className="p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800">
                     <span className="text-zinc-400 block text-[10px] uppercase">Cutout Mode</span>
-                    <span className="text-white font-medium">SHORT_EDGES (Notch)</span>
+                    <span className="text-white font-medium">SHORT_EDGES</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800">
+                    <span className="text-zinc-400 block text-[10px] uppercase">Overlay Type</span>
+                    <span className="text-white font-medium text-[11px]">APPLICATION_OVERLAY</span>
                   </div>
                   <div className="p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800">
                     <span className="text-zinc-400 block text-[10px] uppercase">Target SDK</span>
