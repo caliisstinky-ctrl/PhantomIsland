@@ -1,14 +1,12 @@
 import React from 'react';
-import { Smartphone, Package, Sparkles } from 'lucide-react';
+import { Terminal, Sparkles } from 'lucide-react';
 
 interface AkitaBannerProps {
-  onLaunchRealOverlay?: () => void;
-  onOpenAPKModal?: () => void;
+  onOpenRootModal?: () => void;
 }
 
 export const AkitaBanner: React.FC<AkitaBannerProps> = ({
-  onLaunchRealOverlay,
-  onOpenAPKModal,
+  onOpenRootModal,
 }) => {
   return (
     <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-zinc-950 via-[#0b0b0e] to-zinc-950 border border-zinc-800/90 p-5 sm:p-6 mb-6 shadow-2xl group">
@@ -204,27 +202,20 @@ export const AkitaBanner: React.FC<AkitaBannerProps> = ({
           </div>
         </div>
 
-        {/* Quick Actions (Moved from the old top bar into the banner for clean ergonomics) */}
-        <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto justify-center sm:justify-end">
-          {onLaunchRealOverlay && (
+        {/* ONE BUTTON: ROOT USER OPTIONS & PRIVILEGED ENGINE */}
+        <div className="flex items-center shrink-0 w-full sm:w-auto justify-center sm:justify-end">
+          {onOpenRootModal && (
             <button
-              onClick={onLaunchRealOverlay}
-              className="py-2 px-3.5 rounded-xl bg-white text-black text-xs font-bold hover:bg-zinc-200 transition-colors flex items-center gap-1.5 shadow-lg active:scale-95"
-              title="Launch PhantomIsland directly on this phone screen"
+              onClick={onOpenRootModal}
+              className="py-2.5 px-4 rounded-2xl bg-gradient-to-r from-purple-950 via-zinc-900 to-black border border-purple-500/70 hover:border-purple-400 text-white text-xs font-bold transition-all flex items-center gap-2.5 shadow-xl shadow-purple-950/40 active:scale-95 group/root hover:shadow-purple-900/30"
+              title="Open Root & Superuser Privileged Engine (Magisk, KernelSU, Priv-App, OOM -1000)"
             >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span>Launch on Phone</span>
-            </button>
-          )}
-
-          {onOpenAPKModal && (
-            <button
-              onClick={onOpenAPKModal}
-              className="py-2 px-3.5 rounded-xl bg-zinc-900 border border-zinc-700 text-zinc-200 hover:text-white hover:bg-zinc-800 text-xs font-semibold transition-colors flex items-center gap-1.5 active:scale-95 shadow-md"
-              title="Export Standalone Android APK Source"
-            >
-              <Package className="w-3.5 h-3.5 text-zinc-400" />
-              <span>Get APK</span>
+              <div className="relative flex items-center justify-center">
+                <span className="w-2 h-2 rounded-full bg-purple-400 animate-ping absolute opacity-75" />
+                <span className="w-2 h-2 rounded-full bg-purple-500" />
+              </div>
+              <Terminal className="w-3.5 h-3.5 text-purple-300 group-hover/root:text-white transition-colors" />
+              <span className="tracking-wide">Root User Options</span>
             </button>
           )}
         </div>

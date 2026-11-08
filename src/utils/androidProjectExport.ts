@@ -88,11 +88,11 @@ Your APK will be ready at: \`app/build/outputs/apk/debug/app-debug.apk\`
 }
 
 android {
-    namespace 'com.dynamicnotch.app'
+    namespace 'com.phantomisland.app'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.dynamicnotch.app"
+        applicationId "com.phantomisland.app"
         minSdk 24
         targetSdk 34
         versionCode 660
@@ -108,8 +108,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 }
 
@@ -128,10 +128,9 @@ dependencies {
       srcMain.file(
         'AndroidManifest.xml',
         `<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.dynamicnotch.app">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Essential Android Permissions for Dynamic Notch & Floating Overlay -->
+    <!-- Essential Android Permissions for PhantomIsland Floating Overlay -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
@@ -212,11 +211,11 @@ dependencies {
       );
 
       // Kotlin & Java code
-      const kotlinFolder = srcMain.folder('java/com/dynamicnotch/app');
+      const kotlinFolder = srcMain.folder('java/com/phantomisland/app');
       if (kotlinFolder) {
         kotlinFolder.file(
           'MainActivity.kt',
-          `package com.dynamicnotch.app
+          `package com.phantomisland.app
 
 import android.annotation.SuppressLint
 import android.os.Build
@@ -279,7 +278,7 @@ class MainActivity : AppCompatActivity() {
         );
         kotlinFolder.file(
           'MainActivity.java',
-          `package com.dynamicnotch.app;
+          `package com.phantomisland.app;
 
 import android.annotation.SuppressLint;
 import android.os.Build;
@@ -342,7 +341,7 @@ public class MainActivity extends AppCompatActivity {
         );
         kotlinFolder.file(
           'IslandOverlayService.kt',
-          `package com.dynamicnotch.app
+          `package com.phantomisland.app
 
 import android.annotation.SuppressLint
 import android.app.Notification
@@ -508,7 +507,7 @@ class IslandOverlayService : Service() {
 
         kotlinFolder.file(
           'IslandAccessibilityService.kt',
-          `package com.dynamicnotch.app
+          `package com.phantomisland.app
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
@@ -537,7 +536,7 @@ class IslandAccessibilityService : AccessibilityService() {
 
         kotlinFolder.file(
           'BootReceiver.kt',
-          `package com.dynamicnotch.app
+          `package com.phantomisland.app
 
 import android.content.BroadcastReceiver
 import android.content.Context

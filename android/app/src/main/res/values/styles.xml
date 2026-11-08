@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.DynamicNotch" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.PhantomIsland" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="android:statusBarColor">#09090B</item>
         <item name="android:navigationBarColor">#070708</item>
         <item name="android:windowBackground">#070708</item>
     </style>
-    <style name="Theme.DynamicNotch.Fullscreen" parent="Theme.DynamicNotch">
+    <style name="Theme.PhantomIsland.Fullscreen" parent="Theme.PhantomIsland">
         <item name="android:windowFullscreen">false</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
     </style>

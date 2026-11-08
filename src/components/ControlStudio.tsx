@@ -2565,7 +2565,7 @@ export const ControlStudio: React.FC<ControlStudioProps> = ({
                     <button
                       onClick={() =>
                         copyToClipboard(
-                          `adb shell pm grant com.dynamicnotch.app android.permission.SYSTEM_ALERT_WINDOW\nadb shell dumpsys deviceidle whitelist +com.dynamicnotch.app\nadb shell cmd appops set com.dynamicnotch.app RUN_IN_BACKGROUND allow`,
+                          `adb shell pm grant com.phantomisland.app android.permission.SYSTEM_ALERT_WINDOW\nadb shell dumpsys deviceidle whitelist +com.phantomisland.app\nadb shell cmd appops set com.phantomisland.app RUN_IN_BACKGROUND allow`,
                           'adb-commands'
                         )
                       }
@@ -2588,9 +2588,9 @@ export const ControlStudio: React.FC<ControlStudioProps> = ({
                     Execute via USB debugging on any PC or wireless debugging via Shizuku / LADB:
                   </p>
                   <pre className="p-2.5 rounded-lg bg-black text-[11px] font-mono text-zinc-300 overflow-x-auto leading-relaxed border border-zinc-900">
-                    adb shell pm grant com.dynamicnotch.app android.permission.SYSTEM_ALERT_WINDOW{'\n'}
-                    adb shell dumpsys deviceidle whitelist +com.dynamicnotch.app{'\n'}
-                    adb shell cmd appops set com.dynamicnotch.app RUN_IN_BACKGROUND allow
+                    adb shell pm grant com.phantomisland.app android.permission.SYSTEM_ALERT_WINDOW{'\n'}
+                    adb shell dumpsys deviceidle whitelist +com.phantomisland.app{'\n'}
+                    adb shell cmd appops set com.phantomisland.app RUN_IN_BACKGROUND allow
                   </pre>
                 </div>
               </div>
@@ -2639,7 +2639,7 @@ export const ControlStudio: React.FC<ControlStudioProps> = ({
                     {/* System Priv-App Toggle */}
                     <div className="p-3.5 bg-zinc-950/80 rounded-2xl border border-zinc-800 flex items-center justify-between">
                       <div>
-                        <div className="text-xs font-medium text-white">Run as /system/priv-app/DynamicNotch</div>
+                        <div className="text-xs font-medium text-white">Run as /system/priv-app/PhantomIsland</div>
                         <div className="text-[11px] text-zinc-400">Grants privileged system-app tier; immune to OEM task kill</div>
                       </div>
                       <button
@@ -2706,7 +2706,7 @@ export const ControlStudio: React.FC<ControlStudioProps> = ({
                         <button
                           onClick={() =>
                             copyToClipboard(
-                              `su -c pm grant com.dynamicnotch.app android.permission.SYSTEM_ALERT_WINDOW\nsu -c echo -1000 > /proc/$(pidof com.dynamicnotch.app)/oom_score_adj`,
+                              `su -c pm grant com.phantomisland.app android.permission.SYSTEM_ALERT_WINDOW\nsu -c echo -1000 > /proc/$(pidof com.phantomisland.app)/oom_score_adj`,
                               'root-commands'
                             )
                           }
@@ -2726,8 +2726,8 @@ export const ControlStudio: React.FC<ControlStudioProps> = ({
                         </button>
                       </div>
                       <pre className="p-2.5 rounded-lg bg-black text-[11px] font-mono text-purple-300/90 overflow-x-auto leading-relaxed border border-zinc-900">
-                        su -c pm grant com.dynamicnotch.app android.permission.SYSTEM_ALERT_WINDOW{'\n'}
-                        su -c echo -1000 &gt; /proc/$(pidof com.dynamicnotch.app)/oom_score_adj
+                        su -c pm grant com.phantomisland.app android.permission.SYSTEM_ALERT_WINDOW{'\n'}
+                        su -c echo -1000 &gt; /proc/$(pidof com.phantomisland.app)/oom_score_adj
                       </pre>
                     </div>
                   </>

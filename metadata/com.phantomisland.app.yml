@@ -1,0 +1,32 @@
+Categories:
+  - System
+  - Customization
+License: Apache-2.0
+SourceCode: https://github.com/caliisstinky/PhantomIsland
+IssueTracker: https://github.com/caliisstinky/PhantomIsland/issues
+
+AutoName: PhantomIsland
+Summary: Ultra-precision floating island, camera cutout battery ring and edge lighting overlay
+Description: |-
+  PhantomIsland is a sleek, open-source floating cutout hub and camera overlay designed for Android.
+  It anchors around physical camera punch-holes with sub-pixel precision, displaying battery rings,
+  charging radar sweeps, media activities, and notifications with zero background killing.
+
+  Features:
+  - System Alert Window Floating Overlay (renders on top of all applications and games)
+  - Interactive camera cutout alignment and size tuning
+  - Real-time battery ring indicator with charging animations
+  - Full-screen edge lighting and island border glows
+  - Root (Magisk / KernelSU / APatch) and non-root (Shizuku / Accessibility Service) support
+  - 100% free, open-source, and privacy-respecting (zero trackers, zero telemetry)
+
+RepoType: git
+Repo: https://github.com/caliisstinky/PhantomIsland.git
+
+Builds:
+  - versionName: 6.6.0
+    versionCode: 660
+    commit: v6.6.0
+    subdir: android
+    gradle:
+      - yes

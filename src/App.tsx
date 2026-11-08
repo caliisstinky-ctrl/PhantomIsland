@@ -12,6 +12,7 @@ import { DynamicNotch } from './components/DynamicNotch';
 import { EdgeLightingOverlay } from './components/EdgeLightingOverlay';
 import { RealPhoneOverlayMode } from './components/RealPhoneOverlayMode';
 import { APKExportModal } from './components/APKExportModal';
+import { RootOptionsModal } from './components/RootOptionsModal';
 import { soundFx } from './utils/audio';
 
 const DEFAULT_CONFIG: NotchConfig = {
